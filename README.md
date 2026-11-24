@@ -8,7 +8,7 @@ L'application est le fichier, nommé `index.html`, et fonctionne entièrement da
 
 Deux possibilités :
 
-- En ligne, à l'adresse de la page GitHub Pages du dépôt (lien à compléter après publication).
+- En ligne, à l'adresse de la page GitHub Pages du dépôt (https://acavare.github.io/analyse-cephalometrique/).
 - Hors ligne, en téléchargeant le fichier `index.html`, puis en l'ouvrant d'un double-clic ou par clic droit, « Ouvrir avec » : Google Chrome, Safari, Firefox ou Edge.
 
 La téléradiographie se charge avec le bouton « Ouvrir une image… » ou en la glissant dans la zone centrale (JPG ou PNG). La molette, les boutons +/- ou le pad zoome sur l'image, la barre espace maintenue avec un glisser déplace le cliché, et le bouton « Ajuster » le recentre.
