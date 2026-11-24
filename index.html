@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Dr Anaïs Cavaré — Analyse céphalométrique (Tweed, Steiner & Ricketts)
+  Développée avec l'assistance de Claude Fable 5 (Anthropic).
+  Licence Creative Commons BY-NC-SA 4.0 International
+  https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr
+  Usage libre et gratuit. Utilisation commerciale interdite.
+  Toute version modifiée doit être diffusée sous la même licence, avec mention de l'auteur.
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analyse céphalométrique : Tweed, Steiner, Ricketts</title>
+<style>
+#btnLoupe.on{background:#2dd4bf;border-color:#2dd4bf;color:#06231f;font-weight:600}
+  :root{
+    --bg:#12161c; --panel:#1b212b; --panel2:#232b37; --line:#323d4d;
+    --ink:#e8edf4; --ink-dim:#9aa7b8; --ink-faint:#66748a;
+    --accent:#4fd1c5;         /* cyan clinique */
+    --accent-warm:#f5b041;    /* jalon actif */
+    --scale:#8b5cf6;          /* échelle */
+    --danger:#ef6461; --ok:#5fd68a;
+    --pt:#f5b041;
+    --radius:9px;
+    --mono:'SF Mono',ui-monospace,'Cascadia Mono','Roboto Mono',Menlo,Consolas,monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:var(--sans); background:var(--bg); color:var(--ink);
+    display:flex; flex-direction:column; overflow:hidden; font-size:14px;
+  }
+  header{
+    display:flex;align-items:center;gap:16px;padding:10px 18px;
+    background:linear-gradient(180deg,#1b212b,#161b23);
+    border-bottom:1px solid var(--line); flex-shrink:0;
+  }
+  header .brand{font-weight:700;letter-spacing:.3px;font-size:15px;display:flex;align-items:center;gap:9px}
+  header .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  header .sub{color:var(--ink-faint);font-size:12px;font-weight:400}
+  header .spacer{flex:1}
+  .btn{
+    font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink);
+    background:var(--panel2);border:1px solid var(--line);border-radius:7px;
+    padding:7px 13px;cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--accent);color:#fff}
+  .btn.primary{background:var(--accent);color:#08221f;border-color:var(--accent)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn:disabled:hover{border-color:var(--line);color:var(--ink)}
+
+  main{flex:1;display:flex;min-height:0}
+
+  /* ---- Left: stage ---- */
+  .stage-wrap{flex:1;position:relative;background:
+      radial-gradient(1200px 800px at 50% 30%, #171d26, #10141a);
+      display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #stage{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .drop-hint{
+    text-align:center;color:var(--ink-faint);pointer-events:none;padding:30px;max-width:440px;
+  }
+  .drop-hint .big{font-size:17px;color:var(--ink-dim);margin-bottom:8px;font-weight:600}
+  .drop-hint kbd{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
+    border-radius:4px;padding:1px 6px;font-size:12px}
+
+  .zoombar{position:absolute;right:14px;bottom:14px;display:flex;gap:6px;z-index:5}
+  .zoombar .btn{padding:6px 11px}
+
+  .banner{
+    position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:6;
+    background:rgba(20,25,32,.9);backdrop-filter:blur(8px);border:1px solid var(--accent);
+    border-radius:8px;padding:9px 16px;font-size:13px;color:var(--ink);display:none;align-items:center;gap:10px;
+    box-shadow:0 6px 24px rgba(0,0,0,.4);max-width:80%;
+  }
+  .banner .step-dot{width:8px;height:8px;border-radius:50%;background:var(--accent-warm);flex-shrink:0}
+  .banner b{color:var(--accent)}
+
+  /* ---- Right: panel ---- */
+  aside{
+    width:390px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--line);
+    display:flex;flex-direction:column;min-height:0;
+  }
+  .tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0}
+  .tabs button{
+    flex:1;background:transparent;border:none;color:var(--ink-dim);font-family:var(--sans);
+    font-size:12.5px;font-weight:600;padding:11px 6px;cursor:pointer;border-bottom:2px solid transparent;
+  }
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tabs button:hover{color:var(--ink)}
+  .tab-body{flex:1;overflow-y:auto;padding:14px}
+  .tab-body::-webkit-scrollbar{width:9px}
+  .tab-body::-webkit-scrollbar-thumb{background:#2c3644;border-radius:6px;border:2px solid var(--panel)}
+
+  /* landmark list */
+  .lm-group{margin-bottom:16px}
+  .lm-group h4{margin:0 0 8px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);
+    display:flex;align-items:center;gap:8px}
+  .lm-group h4::after{content:"";flex:1;height:1px;background:var(--line)}
+  .lm{
+    display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:7px;cursor:pointer;
+    border:1px solid transparent;transition:.12s;
+  }
+  .lm:hover{background:var(--panel2)}
+  .lm.active{background:var(--panel2);border-color:var(--accent-warm)}
+  .lm.placed .code{color:var(--ok)}
+  .lm .chip{
+    width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:800;font-family:var(--mono);background:var(--panel2);border:1.5px solid var(--ink-faint);color:var(--ink-faint);
+  }
+  .lm.placed .chip{background:var(--accent-warm);border-color:var(--accent-warm);color:#241a00}
+  .lm .meta{flex:1;min-width:0}
+  .lm .code{font-weight:700;font-family:var(--mono);font-size:13px}
+  .lm .desc{font-size:11px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lm .status{font-size:10px;color:var(--ink-faint);font-family:var(--mono)}
+  .lm.placed .status{color:var(--ok)}
+
+  /* results table */
+  table.results{width:100%;border-collapse:collapse;font-size:13px}
+  table.results th{
+    text-align:left;font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-faint);
+    font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);
+  }
+  table.results td{padding:7px 8px;border-bottom:1px solid #262f3c;vertical-align:middle}
+  table.results tr.sec td{background:var(--panel2);font-weight:700;font-size:10.5px;letter-spacing:.5px;
+    text-transform:uppercase;color:var(--accent);padding:6px 8px}
+  table.results .measure{font-weight:600}
+  table.results .measure small{display:block;color:var(--ink-faint);font-weight:400;font-size:10.5px}
+  table.results .val{font-family:var(--mono);font-weight:700;text-align:right;font-size:13.5px}
+  table.results .val.na{color:var(--ink-faint);font-weight:400}
+  table.results .norm{font-family:var(--mono);color:var(--ink-dim);text-align:right;font-size:12px;white-space:nowrap}
+  .flag{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;vertical-align:middle}
+  .flag.hi{background:var(--danger)} .flag.lo{background:var(--accent)} .flag.ok{background:var(--ok)}
+
+  .empty-note{color:var(--ink-faint);font-size:12.5px;line-height:1.6;padding:8px 4px}
+  .empty-note code{font-family:var(--mono);color:var(--ink-dim)}
+
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:var(--mono);
+    padding:3px 8px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--ink-dim)}
+  .pill .d{width:7px;height:7px;border-radius:50%}
+  .scale-readout{display:flex;flex-direction:column;gap:6px;font-size:12px}
+  .scale-readout .row{display:flex;justify-content:space-between;color:var(--ink-dim)}
+  .scale-readout .row b{color:var(--ink);font-family:var(--mono)}
+  input.num{width:74px;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+    border-radius:6px;padding:5px 7px;font-family:var(--mono);font-size:13px;text-align:right}
+  input.num:focus{outline:none;border-color:var(--accent)}
+  .field{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0}
+  .field label{font-size:12.5px;color:var(--ink-dim)}
+  .foot-actions{padding:10px 14px;border-top:1px solid var(--line);display:flex;gap:8px;flex-shrink:0}
+  .foot-actions .btn{flex:1}
+  a.dl{display:none}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--panel2);border:1px solid var(--accent);color:var(--ink);padding:10px 18px;border-radius:8px;
+    font-size:13px;opacity:0;transition:.25s;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .mini{font-size:11px;color:var(--ink-faint);line-height:1.5;margin-top:6px}
+  .kbdrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .kbdrow kbd{font-family:var(--mono);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--ink-dim)}
+
+  aside{width:440px}
+  .tabs button .n{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
+    border:1.5px solid currentColor;font-size:10.5px;margin-right:6px;font-family:var(--mono)}
+  .tabs button.done .n{background:var(--ok);border-color:var(--ok);color:#06231f}
+  .an-card{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:8px;
+    margin-bottom:10px;cursor:pointer;background:var(--panel2)}
+  .an-card:hover{border-color:var(--accent)}
+  .an-card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .an-card input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px}
+  .an-card .t{font-weight:700;font-size:14px}
+  .an-card .d{font-size:12px;color:var(--ink-dim);margin-top:3px;line-height:1.5}
+  .res-h{font-size:15px;font-weight:700;margin:18px 0 8px;color:var(--ink)}
+  .res-h:first-child{margin-top:0}
+  table.results td.interp{font-size:12px;color:var(--ink)}
+  table.results td.interp.ok{color:var(--ok)}
+  table.results td.interp.hi,table.results td.interp.lo{color:var(--accent-warm)}
+  table.results .val{white-space:nowrap}
+  .boxnote{font-size:12px;color:var(--ink-dim);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.55}
+  .boxnote b{color:var(--ink)}
+  .lm .desc{white-space:normal;overflow:visible}
+  .lm.computed{cursor:default;opacity:.8}
+  .lm.computed .chip{border-style:dashed;border-color:#fff;color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span><div>Analyse céphalométrique <span class="sub">Tweed · Steiner · Ricketts</span><div class="sub" style="margin-top:1px">Téléradiographie de profil</div></div></div><span class="ml-link" onclick="document.getElementById('mlPop').style.display='flex'">mentions légales</span>
+  <div class="spacer"></div>
+  <button class="btn ghost" id="btnLoad">Ouvrir une image…</button>
+  <button class="btn ghost" id="btnReset">Réinitialiser</button>
+  <button class="btn ghost" id="btnLoupe" title="Loupe de précision pendant le placement des points">Loupe</button>
+  <input type="file" id="file" accept="image/*" style="display:none">
+</header>
+
+<main>
+  <div class="stage-wrap" id="stageWrap">
+    <canvas id="stage"></canvas>
+    <div class="drop-hint" id="dropHint">
+      <div class="big">Glissez la téléradiographie ici</div>
+      <div>ou cliquez sur <b>« Ouvrir une image… »</b>. Formats JPG / PNG.</div>
+      <div class="mini" style="margin-top:14px">
+        Déroulé : ① mise à l'échelle · ② choix de l'analyse · ③ placement des points · ④ résultats.
+      </div>
+    </div>
+    <div class="banner" id="banner"><span class="step-dot"></span><span id="bannerText"></span></div>
+    <div class="zoombar" id="zoombar" style="display:none">
+      <button class="btn" id="zOut">−</button>
+      <button class="btn" id="zFit">Ajuster</button>
+      <button class="btn" id="zIn">+</button>
+    </div>
+  </div>
+
+  <aside>
+    <div class="tabs">
+      <button class="active" data-tab="scale"><span class="n">1</span>Échelle</button>
+      <button data-tab="analysis"><span class="n">2</span>Analyse</button>
+      <button data-tab="points"><span class="n">3</span>Points</button>
+      <button data-tab="results"><span class="n">4</span>Résultats</button>
+    </div>
+
+    <div class="tab-body" id="tab-scale">
+      <div class="lm-group">
+        <h4>Mise à l'échelle</h4>
+        <p class="empty-note">
+          Tracer un segment de longueur connue sur le cliché (règle radiographique, repère métallique),
+          puis saisir sa longueur réelle.
+        </p>
+        <button class="btn" id="btnScale" style="width:100%;margin-bottom:12px">Tracer le segment de référence</button>
+        <div class="scale-readout">
+          <div class="row"><span>Segment tracé</span><b id="scalePx">non tracé</b></div>
+          <div class="field">
+            <label>Distance réelle</label>
+            <span><input class="num" id="scaleMm" type="number" step="0.1" placeholder="10.0"> mm</span>
+          </div>
+          <div class="row"><span>Facteur</span><b id="scaleFactor">non définie</b></div>
+        </div>
+        <button class="btn primary" id="applyScale" style="width:100%;margin-top:12px">Appliquer l'échelle</button>
+        <p class="mini">Sans échelle, seules les mesures angulaires sont calculées. Les mesures en mm nécessitent la mise à l'échelle.</p>
+      </div>
+    </div>
+
+    <div class="tab-body" id="tab-analysis" style="display:none">
+      <div class="lm-group"><h4>Choix de l'analyse</h4></div>
+      <p class="empty-note" style="margin-top:-6px">Plusieurs analyses peuvent être cochées. Les points céphalométriques communs ne se placent qu'une fois.</p>
+      <label class="an-card" data-an="T"><input type="checkbox" value="T"><div class="t">Tweed</div></label>
+      <label class="an-card" data-an="S"><input type="checkbox" value="S"><div class="t">Steiner</div></label>
+      <label class="an-card" data-an="R"><input type="checkbox" value="R"><div class="t">Ricketts (11 facteurs)</div></label>
+      <div class="field" id="ageRow" style="margin-top:6px">
+        <label>Âge du patient (ans), pour les normes de Ricketts</label>
+        <span><input class="num" id="age" type="number" step="0.5" min="4" max="30" placeholder="9"></span>
+      </div>
+      <p class="mini" id="ageNote">Plusieurs normes de Ricketts varient avec l'âge. Sans âge saisi, les normes à 9 ans sont utilisées.</p>
+      <button class="btn primary" id="btnStart" style="width:100%;margin-top:14px" disabled>Commencer les tracés</button>
+    </div>
+
+    <div class="tab-body" id="tab-points" style="display:none"></div>
+
+    <div class="tab-body" id="tab-results" style="display:none">
+      <div id="resultsHost"></div>
+    </div>
+
+    <div class="foot-actions">
+      <button class="btn" id="btnExportCsv">Exporter CSV</button>
+      <button class="btn" id="btnExportPng">Image annotée</button>
+      <button class="btn primary" id="btnCopy">Copier tableau</button>
+    </div>
+  </aside>
+</main>
+
+<a class="dl" id="dl"></a>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   CEPHALO : analyses de Tweed, Steiner et Ricketts sur
+   téléradiographie de profil. Application autonome, aucune
+   donnée ne quitte la machine.
+   ============================================================ */
+
+/* ---------- Points à placer ----------
+   an : analyses qui utilisent le point (T Tweed, S Steiner, R Ricketts) */
+const LANDMARKS = [
+  {code:'S',  name:'Sella', desc:'Centre géométrique de la selle turcique', grp:'Base du crâne', an:'TS'},
+  {code:'Na', name:'Nasion', desc:'Point le plus antérieur de la suture fronto-nasale', grp:'Base du crâne', an:'TSR'},
+  {code:'Ba', name:'Basion', desc:'Point le plus bas et le plus reculé du basi-occipital', grp:'Base du crâne', an:'R'},
+  {code:'Po', name:'Porion', desc:'Point le plus élevé du conduit auditif externe', grp:'Base du crâne', an:'TR'},
+  {code:'Or', name:'Orbitale', desc:'Point le plus déclive du rebord orbitaire', grp:'Base du crâne', an:'TR'},
+  {code:'Pt', name:'Point ptérygoïdien', desc:'Bord postéro-supérieur de la fente ptérygo-maxillaire (PtV passe par ce point)', grp:'Base du crâne', an:'R'},
+  {code:'Ar', name:'Articulare', desc:'Intersection du bord postérieur du ramus et de la face exocrânienne du clivus (sa projection sur SN donne le point E de Steiner)', grp:'Base du crâne', an:'TS'},
+  {code:'Co', name:'Condylion', desc:'Point le plus postérieur et supérieur du condyle (angle de Mc Horris)', grp:'Base du crâne', an:'R'},
+  {code:'Dc', name:'Point Dc', desc:'Centre du col du condyle sur la ligne Ba-Na (le point se place sur la ligne)', grp:'Base du crâne', an:'R'},
+
+  {code:'ENA',name:'Épine nasale antérieure', desc:'Extrémité antérieure du maxillaire', grp:'Maxillaire', an:'TR'},
+  {code:'ENP',name:'Épine nasale postérieure', desc:'Extrémité postérieure du palais dur', grp:'Maxillaire', an:'T'},
+  {code:'A',  name:'Point A', desc:'Point le plus déclive de la concavité antérieure du maxillaire', grp:'Maxillaire', an:'TSR'},
+
+  {code:'B',  name:'Point B', desc:'Point le plus déclive de la concavité antérieure de la mandibule', grp:'Mandibule', an:'TS'},
+  {code:'Pm', name:'Suprapogonion', desc:"Point d'inflexion du contour antérieur de la symphyse entre B et Pog", grp:'Mandibule', an:'R'},
+  {code:'Pog',name:'Pogonion', desc:'Point le plus antérieur de la symphyse', grp:'Mandibule', an:'SR'},
+  {code:'Gn', name:'Gnathion', desc:'Point du contour symphysaire à égale distance de Pog et de Me', grp:'Mandibule', an:'SR'},
+  {code:'Me', name:'Menton', desc:'Point le plus inférieur de la symphyse', grp:'Mandibule', an:'TR'},
+  {code:'D',  name:'Point D', desc:'Centre de la symphyse, au centre de sa base', grp:'Mandibule', an:'S'},
+  {code:'Go', name:'Gonion', desc:"Point à égale distance du point le plus postérieur et du point le plus inférieur de l'angle goniaque", grp:'Mandibule', an:'S'},
+  {code:'Br', name:'Point fictif', desc:"Sert uniquement à tracer la tangente au bord postérieur de la branche passant par Ar, pour mesurer la HFP", grp:'Mandibule', an:'T'},
+  {code:'GoI',name:'Point fictif', desc:'Sert uniquement à tracer la tangente au bord inférieur de la mandibule passant par Me (plan mandibulaire)', grp:'Mandibule', an:'TR'},
+
+  {code:'R1', name:'R1', desc:'Point le plus profond de la concavité du bord antérieur du ramus, à mi-hauteur entre ses courbures supérieure et inférieure', grp:'Ramus (construction de Xi)', an:'R'},
+  {code:'R2', name:'R2', desc:'Point du bord postérieur du ramus en regard de R1 (le point se place sur la parallèle à Francfort passant par R1)', grp:'Ramus (construction de Xi)', an:'R'},
+  {code:'R3', name:'R3', desc:"Point le plus profond de l'échancrure sigmoïde", grp:'Ramus (construction de Xi)', an:'R'},
+  {code:'R4', name:'R4', desc:'Point du bord inférieur de la mandibule à la verticale de R3 (le point se place sur la parallèle à PtV passant par R3)', grp:'Ramus (construction de Xi)', an:'R'},
+
+  {code:'OccP',name:"Plan d'occlusion, point postérieur", desc:'Engrènement des 1res molaires', grp:"Plan d'occlusion fonctionnel", an:'TS'},
+  {code:'OccA',name:"Plan d'occlusion, point antérieur", desc:'Milieu du recouvrement incisif', grp:"Plan d'occlusion fonctionnel", an:'TS'},
+
+  {code:'U1a',name:'Incisive Mx, apex', desc:"Apex de l'incisive maxillaire", grp:'Dents', an:'TS'},
+  {code:'U1i',name:'Incisive Mx, bord libre', desc:"Bord libre de l'incisive maxillaire", grp:'Dents', an:'TS'},
+  {code:'U1c',name:'Incisive Mx, couronne', desc:'Point le plus vestibulaire de la couronne (I-NA)', grp:'Dents', an:'S'},
+  {code:'L1a',name:'Incisive Md, apex', desc:"Apex de l'incisive mandibulaire", grp:'Dents', an:'TSR'},
+  {code:'L1i',name:'Incisive Md, bord libre', desc:"Bord libre de l'incisive mandibulaire", grp:'Dents', an:'TSR'},
+  {code:'L1c',name:'Incisive Md, couronne', desc:'Point le plus vestibulaire de la couronne (i-NB)', grp:'Dents', an:'S'},
+  {code:'U6d',name:'1re molaire Mx, face distale', desc:'Point le plus distal de la couronne de la 1re molaire maxillaire', grp:'Dents', an:'R'},
+
+  {code:'Cm', name:'Columelle', desc:'Milieu du S formé par la columelle (ligne S de Steiner)', grp:'Tissus mous', an:'S'},
+  {code:'Prn',name:'Pronasale', desc:'Pointe du nez (ligne E de Ricketts)', grp:'Tissus mous', an:'R'},
+  {code:'Ls', name:'Lèvre supérieure', desc:'Point le plus antérieur de la lèvre supérieure', grp:'Tissus mous', an:'TSR'},
+  {code:'Li', name:'Lèvre inférieure', desc:'Point le plus antérieur de la lèvre inférieure', grp:'Tissus mous', an:'TSR'},
+  {code:'PogM',name:'Pogonion cutané', desc:'Point le plus antérieur du menton cutané', grp:'Tissus mous', an:'TSR'},
+];
+const GROUP_ORDER = ['Base du crâne','Maxillaire','Mandibule','Ramus (construction de Xi)',"Plan d'occlusion fonctionnel",'Dents','Tissus mous'];
+const AN_NAME = {T:'Tweed', S:'Steiner', R:'Ricketts'};
+
+function PT_LABEL(code){ return code==='GoI' ? 'Go′' : code==='PogM' ? 'Pog′' : code; }
+function PT_COLOR(code){
+  if(code==='Br') return '#7dd3fc';
+  if(code==='U1c') return '#a7f3c4';
+  if(code==='L1c') return '#ffb3b1';
+  if(code==='U1i'||code==='U1a'||code==='U6d') return '#5fd68a';
+  if(code==='L1i'||code==='L1a') return '#ef6461';
+  if(code==='OccP'||code==='OccA') return '#c4b5fd';
+  if(/^R[1-4]$/.test(code)) return '#7dd3fc';
+  if(['Cm','Prn','Ls','Li','PogM'].includes(code)) return '#f9a8d4';
+  return '#f5b041';
+}
+
+/* ---------- État ---------- */
+const state = {
+  img:null, imgName:'',
+  view:{scale:1, x:0, y:0},
+  points:{},
+  analyses:[],                       // ['T','S','R']
+  age:null,
+  mode:'idle', placeTarget:null,
+  scale:{p1:null, p2:null, mm:null, factor:null},
+  scaleClicks:[],
+  hoverPt:null, dragPt:null,
+  panning:false, panStart:null, viewStart:null, spaceDown:false,
+  cursor:null, useLoupe:true, loupeR:115, loupeMag:3,
+};
+const activeLandmarks = () => LANDMARKS.filter(l=>state.analyses.some(a=>l.an.includes(a)));
+const usesAn = a => state.analyses.includes(a);
+
+/* ---------- Canvas ---------- */
+const stage = document.getElementById('stage');
+const wrap  = document.getElementById('stageWrap');
+const ctx = stage.getContext('2d');
+function resizeCanvas(){
+  const r = wrap.getBoundingClientRect();
+  const dpr = window.devicePixelRatio||1;
+  stage.width = r.width*dpr; stage.height = r.height*dpr;
+  stage.style.width=r.width+'px'; stage.style.height=r.height+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  draw();
+}
+window.addEventListener('resize', resizeCanvas);
+function imgToScreen(p){ return {x:p.x*state.view.scale+state.view.x, y:p.y*state.view.scale+state.view.y}; }
+function screenToImg(p){ return {x:(p.x-state.view.x)/state.view.scale, y:(p.y-state.view.y)/state.view.scale}; }
+function evtPos(e){ const r=stage.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+function fitView(){
+  if(!state.img) return;
+  const r=wrap.getBoundingClientRect(), pad=40;
+  const s=Math.min((r.width-pad)/state.img.width,(r.height-pad)/state.img.height);
+  state.view.scale=s; state.view.x=(r.width-state.img.width*s)/2; state.view.y=(r.height-state.img.height*s)/2;
+  draw();
+}
+
+/* ---------- Géométrie ---------- */
+const V=(a,b)=>({x:b.x-a.x,y:b.y-a.y});
+const dot=(u,v)=>u.x*v.x+u.y*v.y;
+const norm=u=>Math.hypot(u.x,u.y);
+const unit=u=>{const n=norm(u);return {x:u.x/n,y:u.y/n};};
+const add=(a,u,k)=>({x:a.x+u.x*k,y:a.y+u.y*k});
+const DEG=180/Math.PI;
+function angleAt(a,b,c){ const u=V(b,a),v=V(b,c); return Math.acos(Math.max(-1,Math.min(1,dot(u,v)/(norm(u)*norm(v)))))*DEG; }
+function vecAngle(a,b,c,d){ const u=V(a,b),v=V(c,d); return Math.acos(Math.max(-1,Math.min(1,dot(u,v)/(norm(u)*norm(v)))))*DEG; }
+function acuteAngle(p1,p2,p3,p4){ const a=vecAngle(p1,p2,p3,p4); return a>90?180-a:a; }
+function projectOnLine(p,a,b){ const d=V(a,b); const t=dot(V(a,p),d)/dot(d,d); return {x:a.x+d.x*t,y:a.y+d.y*t}; }
+function perpDist(p,a,b){ return distPts(p,projectOnLine(p,a,b)); }
+const distPts=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y);
+function axialCoord(p,a,b){ return dot(V(a,p),unit(V(a,b))); }
+function lineIntersect(a,b,c,d){
+  const r=V(a,b), s=V(c,d), den=r.x*s.y-r.y*s.x; if(Math.abs(den)<1e-9) return null;
+  const t=((c.x-a.x)*s.y-(c.y-a.y)*s.x)/den; return add(a,r,t);
+}
+// Direction antérieure du crâne (vers la face), pour signer les distances
+function fwd(){
+  const p=state.points;
+  if(p.S&&p.Na) return unit(V(p.S,p.Na));
+  if(p.Po&&p.Or) return unit(V(p.Po,p.Or));
+  if(p.Ba&&p.Na) return unit(V(p.Ba,p.Na));
+  return {x:1,y:0};
+}
+// Distance d'un point à une droite, positive si le point est en avant de la droite
+function antDist(p,a,b){ const f=projectOnLine(p,a,b); const d=distPts(p,f); return dot(V(f,p),fwd())>=0? d : -d; }
+const mm = v => (v===null||v===undefined||!state.scale.factor)? null : v*state.scale.factor;
+
+/* ---------- Points construits ---------- */
+const P = c => state.points[c] || CONSTRUCT[c] && CONSTRUCT[c]();
+const CONSTRUCT = {
+  // Xi : centre du rectangle construit sur R1-R4, côtés parallèles à Francfort et à PtV
+  Xi(){ const p=state.points; if(!(p.R1&&p.R2&&p.R3&&p.R4&&p.Po&&p.Or)) return null;
+    const u=unit(V(p.Po,p.Or)), v={x:-u.y,y:u.x};
+    const cu=(dot(V(p.Po,p.R1),u)+dot(V(p.Po,p.R2),u))/2, cv=(dot(V(p.Po,p.R3),v)+dot(V(p.Po,p.R4),v))/2;
+    return add(add(p.Po,u,cu),v,cv); },
+  E(){ const p=state.points; return (p.Ar&&p.S&&p.Na)? projectOnLine(p.Ar,p.S,p.Na) : null; },
+  L(){ const p=state.points; return (p.Pog&&p.S&&p.Na)? projectOnLine(p.Pog,p.S,p.Na) : null; },
+  Ao(){ const p=state.points; return (p.A&&p.OccP&&p.OccA)? projectOnLine(p.A,p.OccP,p.OccA) : null; },
+  Bo(){ const p=state.points; return (p.B&&p.OccP&&p.OccA)? projectOnLine(p.B,p.OccP,p.OccA) : null; },
+};
+const has = (...cs) => cs.every(c=>P(c));
+
+/* ---------- Normes et interprétations ---------- */
+const NM = (mean,sd,u) => ({mean,sd,lo:mean-sd,hi:mean+sd,txt:`${fmtN(mean)} ± ${fmtN(sd)} ${u}`});
+const RG = (lo,hi,u,txt) => ({lo,hi,txt:txt||`${fmtN(lo)} à ${fmtN(hi)} ${u}`});
+function fmtN(x){ return (Math.round(x*10)/10).toString().replace('.',','); }
+const ageY = () => (state.age && state.age>0) ? state.age : 9;
+const L3 = (lo,mid,hi) => [lo,mid,hi];
+const MAX=['Rétrognathie maxillaire','Normognathie maxillaire','Prognathie maxillaire'];
+const MAND=['Rétrognathie mandibulaire','Normognathie mandibulaire','Prognathie mandibulaire'];
+const DIVG=['Hypodivergence','Mésodivergence','Hyperdivergence'];
+const CHEIL=['Rétrochéilie','Normochéilie','Prochéilie'];
+const ANG=['Angle fermé','Angle normal','Angle ouvert'];
+
+/* ---------- Mesures ----------
+   needs : points (placés ou construits) ; mmUnit : mesure linéaire */
+const M = {
+  SNA:{label:'SNA',u:'°',needs:['S','Na','A'],f:()=>angleAt(P('S'),P('Na'),P('A')),norm:()=>NM(82,2,'°'),interp:MAX},
+  SNB:{label:'SNB',u:'°',needs:['S','Na','B'],f:()=>angleAt(P('S'),P('Na'),P('B')),norm:()=>NM(80,2,'°'),interp:MAND},
+  ANB:{label:'ANB',u:'°',signed:true,needs:['S','Na','A','B'],f:()=>angleAt(P('S'),P('Na'),P('A'))-angleAt(P('S'),P('Na'),P('B')),
+       norm:()=>NM(2,2,'°'),interp:['Classe III squelettique','Classe I squelettique','Classe II squelettique']},
+  AoBo:{label:'AoBo',u:'mm',lin:true,signed:true,needs:['A','B','OccP','OccA'],
+       f:()=>mm(axialCoord(P('A'),P('OccP'),P('OccA'))-axialCoord(P('B'),P('OccP'),P('OccA'))),
+       norm:()=>NM(0,2,'mm'),interp:['Classe III squelettique','Classe I squelettique','Classe II squelettique']},
+  FMA:{label:'FMA',u:'°',needs:['Po','Or','GoI','Me'],f:()=>acuteAngle(P('Po'),P('Or'),P('GoI'),P('Me')),norm:()=>NM(25,3,'°'),interp:DIVG},
+  HFAT:{label:'HFAT',sub:'Na-Me',u:'mm',lin:true,needs:['Na','Me'],f:()=>mm(distPts(P('Na'),P('Me'))),norm:()=>null},
+  HFAI:{label:'HFAI',sub:'Me au plan bispinal',u:'mm',lin:true,needs:['Me','ENA','ENP'],f:()=>mm(perpDist(P('Me'),P('ENA'),P('ENP'))),norm:()=>null},
+  HFP:{label:'HFP',sub:'Ar-Br jusqu\'au plan mandibulaire',u:'mm',lin:true,needs:['Ar','Br','GoI','Me'],f:()=>mm(hfpPx()),norm:()=>null},
+  HFAI_HFAT:{label:'HFAI / HFAT',u:'%',needs:['Na','Me','ENA','ENP'],
+       f:()=>100*perpDist(P('Me'),P('ENA'),P('ENP'))/distPts(P('Na'),P('Me')),
+       norm:()=>({lo:-Infinity,hi:55,txt:'< 55 %'}),interp:['','Normal','Étage inférieur augmenté']},
+  HFP_HFAI:{label:'HFP / HFAI',u:'',dec:2,needs:['Ar','Br','GoI','Me','ENA','ENP'],
+       f:()=>hfpPx()/perpDist(P('Me'),P('ENA'),P('ENP')),
+       norm:()=>({lo:0.65,hi:0.75,txt:'0,69'}),interp:['Diminué (tendance hyperdivergente)','Normal','Augmenté (tendance hypodivergente)']},
+  IMPA:{label:'IMPA',u:'°',needs:['L1a','L1i','GoI','Me'],f:()=>vecAngle(P('L1a'),P('L1i'),P('Me'),P('GoI')),
+       norm:()=>RG(85,92,'°','85 à 92°'),interp:['Rétroalvéolie','Normoalvéolie','Proalvéolie']},
+  FMIA:{label:'FMIA',u:'°',needs:['Po','Or','GoI','Me','L1a','L1i'],
+       f:()=>180-M.FMA.f()-M.IMPA.f(),norm:()=>({txt:'68°'})},
+  OccFr:{label:'Occ / Francfort',u:'°',needs:['OccP','OccA','Po','Or'],f:()=>acuteAngle(P('OccP'),P('OccA'),P('Po'),P('Or')),
+       norm:()=>NM(10,3,'°'),interp:['Diminué','Normal','Augmenté']},
+  II_T:{label:'I / i',u:'°',needs:['U1i','U1a','L1i','L1a'],f:()=>vecAngle(P('U1i'),P('U1a'),P('L1i'),P('L1a')),norm:()=>NM(135,5,'°'),interp:ANG},
+  Z:{label:'Angle Z',sub:'Merrifield',u:'°',needs:['Po','Or','PogM','Ls','Li'],f:()=>zAngle().v,
+       norm:()=>({mean:78,lo:70,hi:80,txt:'78° (70 à 80°)'}),interp:['Profil convexe','Profil équilibré','Profil plat']},
+
+  SND:{label:'SND',u:'°',needs:['S','Na','D'],f:()=>angleAt(P('S'),P('Na'),P('D')),norm:()=>NM(76,2,'°'),interp:MAND},
+  SE:{label:'SE',sub:'à 12 ans',u:'mm',lin:true,needs:['S','Na','Ar'],f:()=>mm(distPts(P('S'),P('E'))),
+       norm:()=>({lo:19,hi:23,txt:'21 mm'}),interp:['Implantation antérieure de la mandibule','Implantation normale','Implantation postérieure de la mandibule']},
+  SL:{label:'SL',sub:'à 12 ans',u:'mm',lin:true,needs:['S','Na','Pog'],f:()=>mm(distPts(P('S'),P('L'))),
+       norm:()=>({lo:49,hi:53,txt:'51 mm'}),interp:['Mandibule courte','Longueur normale','Mandibule longue']},
+  GoGnSN:{label:'GoGn / SN',u:'°',needs:['Go','Gn','S','Na'],f:()=>acuteAngle(P('Go'),P('Gn'),P('S'),P('Na')),norm:()=>NM(32,5,'°'),interp:DIVG},
+  INA_a:{label:'I / NA',u:'°',needs:['U1i','U1a','Na','A'],f:()=>acuteAngle(P('U1i'),P('U1a'),P('Na'),P('A')),norm:()=>NM(22,2,'°'),interp:['Palatoversion','Normoversion','Vestibuloversion']},
+  INA_d:{label:'I to NA',u:'mm',lin:true,signed:true,needs:['U1c','Na','A'],f:()=>mm(antDist(P('U1c'),P('Na'),P('A'))),norm:()=>NM(4,1,'mm'),interp:['Palatoposition','Normoposition','Vestibuloposition']},
+  iNB_a:{label:'i / NB',u:'°',needs:['L1i','L1a','Na','B'],f:()=>acuteAngle(P('L1i'),P('L1a'),P('Na'),P('B')),norm:()=>NM(25,2,'°'),interp:['Linguoversion','Normoversion','Vestibuloversion']},
+  iNB_d:{label:'i to NB',u:'mm',lin:true,signed:true,needs:['L1c','Na','B'],f:()=>mm(antDist(P('L1c'),P('Na'),P('B'))),norm:()=>NM(4,1,'mm'),interp:['Linguoposition','Normoposition','Vestibuloposition']},
+  OccSN:{label:'Occ / SN',u:'°',needs:['OccP','OccA','S','Na'],f:()=>acuteAngle(P('OccP'),P('OccA'),P('S'),P('Na')),norm:()=>NM(14,3,'°'),interp:['Diminué','Normal','Augmenté']},
+  PogNB:{label:'Pog to NB',u:'mm',lin:true,signed:true,needs:['Pog','Na','B'],f:()=>mm(antDist(P('Pog'),P('Na'),P('B'))),norm:()=>({txt:'pas de norme'})},
+  II_S:{label:'I / i',u:'°',needs:['U1i','U1a','L1i','L1a'],f:()=>vecAngle(P('U1i'),P('U1a'),P('L1i'),P('L1a')),norm:()=>NM(131,5,'°'),interp:ANG},
+  LsS:{label:'Lèvre sup. / ligne S',u:'mm',lin:true,signed:true,needs:['Ls','Cm','PogM'],f:()=>mm(antDist(P('Ls'),P('Cm'),P('PogM'))),norm:()=>NM(0,2,'mm'),interp:CHEIL},
+  LiS:{label:'Lèvre inf. / ligne S',u:'mm',lin:true,signed:true,needs:['Li','Cm','PogM'],f:()=>mm(antDist(P('Li'),P('Cm'),P('PogM'))),norm:()=>NM(0,2,'mm'),interp:CHEIL},
+
+  AxeF:{label:'Axe facial',sub:'Ba-Na / Pt-Gn',u:'°',needs:['Ba','Na','Pt','Gn'],f:()=>vecAngle(P('Na'),P('Ba'),P('Pt'),P('Gn')),
+       norm:()=>NM(90,3,'°'),interp:['Croissance verticale','Normal','Croissance horizontale']},
+  ProfF:{label:'Profondeur faciale',sub:'Francfort / Na-Pog',u:'°',needs:['Po','Or','Na','Pog'],f:()=>vecAngle(P('Or'),P('Po'),P('Na'),P('Pog')),
+       norm:()=>NM(87+(ageY()-9)/3,3,'°'),interp:MAND},
+  PlanM:{label:'Angle du plan mandibulaire',sub:'Francfort / Me-Go′',u:'°',needs:['Po','Or','GoI','Me'],f:()=>acuteAngle(P('Po'),P('Or'),P('GoI'),P('Me')),
+       norm:()=>NM(26-(ageY()-9)/3,4,'°'),interp:DIVG},
+  HFI:{label:'Hauteur faciale inférieure',sub:'ENA-Xi-Pm',u:'°',needs:['ENA','Pm','R1','R2','R3','R4','Po','Or'],f:()=>angleAt(P('ENA'),P('Xi'),P('Pm')),
+       norm:()=>NM(47,4,'°'),interp:['Étage inférieur diminué','Normal','Étage inférieur augmenté']},
+  ArcM:{label:'Arc mandibulaire',sub:'Dc-Xi / Xi-Pm',u:'°',needs:['Dc','Pm','R1','R2','R3','R4','Po','Or'],f:()=>180-angleAt(P('Dc'),P('Xi'),P('Pm')),
+       norm:()=>NM(26+0.5*(ageY()-9),4,'°'),interp:['Arc ouvert','Normal','Arc fermé']},
+  HFT:{label:'Hauteur faciale totale',sub:'Na-Ba / Xi-Pm',u:'°',needs:['Ba','Na','Pm','R1','R2','R3','R4','Po','Or'],f:()=>vecAngle(P('Ba'),P('Na'),P('Xi'),P('Pm')),
+       norm:()=>NM(60,3,'°'),interp:['Diminuée','Normale','Augmentée']},
+  Conv:{label:'Convexité',sub:'A à Na-Pog',u:'mm',lin:true,signed:true,needs:['A','Na','Pog'],f:()=>mm(antDist(P('A'),P('Na'),P('Pog'))),
+       norm:()=>NM(2-(ageY()-9)/3,2,'mm'),interp:['Classe III squelettique','Classe I squelettique','Classe II squelettique']},
+  iAPog_d:{label:'i to A-Pog',u:'mm',lin:true,signed:true,needs:['L1i','A','Pog'],f:()=>mm(antDist(P('L1i'),P('A'),P('Pog'))),
+       norm:()=>NM(1,3,'mm'),interp:['Linguoposition','Normoposition','Vestibuloposition']},
+  iAPog_a:{label:'i / A-Pog',u:'°',needs:['L1i','L1a','A','Pog'],f:()=>acuteAngle(P('L1i'),P('L1a'),P('A'),P('Pog')),
+       norm:()=>NM(22,4,'°'),interp:['Linguoversion','Normoversion','Vestibuloversion']},
+  McH:{label:'Angle de Mc Horris',sub:'i / Co-bord libre',u:'°',needs:['L1i','L1a','Co'],f:()=>vecAngle(P('L1i'),P('L1a'),P('L1i'),P('Co')),
+       norm:()=>NM(90,5,'°'),interp:['Inférieur à la norme','Dans la norme','Supérieur à la norme']},
+  U6PtV:{label:'6 / PtV',u:'mm',lin:true,signed:true,needs:['U6d','Pt','Po','Or'],f:()=>mm(dot(V(P('Pt'),P('U6d')),unit(V(P('Po'),P('Or'))))),
+       norm:()=>NM(ageY()+3,2,'mm'),interp:['Position distale','Position normale','Position mésiale']},
+  LsE:{label:'Lèvre sup. / ligne E',u:'mm',lin:true,signed:true,needs:['Ls','Prn','PogM'],f:()=>mm(antDist(P('Ls'),P('Prn'),P('PogM'))),norm:()=>NM(-1,2,'mm'),interp:CHEIL},
+  LiE:{label:'Lèvre inf. / ligne E',u:'mm',lin:true,signed:true,needs:['Li','Prn','PogM'],f:()=>mm(antDist(P('Li'),P('Prn'),P('PogM'))),norm:()=>NM(0,2,'mm'),interp:CHEIL},
+};
+// HFP : de Ar au plan mandibulaire, le long de la tangente au bord postérieur de la branche (Ar-Br)
+function hfpFoot(){ return lineIntersect(P('Ar'),P('Br'),P('GoI'),P('Me')); }
+function hfpPx(){ const f=hfpFoot(); return f? distPts(P('Ar'),f) : null; }
+// Angle Z : tangente au Pog cutané et à la lèvre la plus protrusive
+function zAngle(){
+  const fr=[P('Or'),P('Po')];
+  const a1=vecAngle(fr[0],fr[1],P('Ls'),P('PogM')), a2=vecAngle(fr[0],fr[1],P('Li'),P('PogM'));
+  return a1<=a2 ? {v:a1,lip:'Ls'} : {v:a2,lip:'Li'};
+}
+
+const ANALYSES = {
+  T:{title:'Analyse de Tweed', sections:[
+    ['Squelettique antéro-postérieur',['SNA','SNB','ANB','AoBo']],
+    ['Squelettique vertical',['FMA','HFAT','HFAI','HFP','HFAI_HFAT','HFP_HFAI']],
+    ['Dento-squelettique',['IMPA','FMIA','OccFr']],
+    ['Dento-dentaire',['II_T']],
+    ['Esthétique',['Z']]]},
+  S:{title:'Analyse de Steiner', sections:[
+    ['Squelettique antéro-postérieur',['SNA','SNB','ANB','SND','SE','SL']],
+    ['Squelettique vertical',['GoGnSN']],
+    ['Dento-squelettique',['INA_a','INA_d','iNB_a','iNB_d','OccSN','PogNB']],
+    ['Dento-dentaire',['II_S']],
+    ['Esthétique',['LsS','LiS']]]},
+  R:{title:'Analyse de Ricketts', sections:[
+    ['Typologie',['AxeF','ProfF','PlanM','HFI','ArcM','HFT']],
+    ['Contrôle du point A',['Conv']],
+    ['Contrôle de la denture',['iAPog_d','iAPog_a','McH','U6PtV']],
+    ['Esthétique',['LsE','LiE']]]},
+};
+
+/* ---------- Calcul ---------- */
+function evalM(id){
+  const m=M[id], n=m.norm();
+  const missing=m.needs.filter(c=>!state.points[c]);
+  if(missing.length) return {id,m,n,val:null,missing};
+  if(m.lin && !state.scale.factor) return {id,m,n,val:null,needsScale:true};
+  let val=null; try{ val=m.f(); if(val!==null && !isFinite(val)) val=null; }catch(_){ val=null; }
+  let cls='', interp='';
+  if(val!==null && n && n.hi!==undefined && m.interp){
+    if(val>n.hi){ cls='hi'; interp=m.interp[2]; }
+    else if(n.lo!==undefined && val<n.lo){ cls='lo'; interp=m.interp[0]; }
+    else { cls='ok'; interp=m.interp[1]; }
+  }
+  return {id,m,n,val,cls,interp};
+}
+function fmtV(r){ if(r.val===null) return ''; const d=r.m.dec!==undefined?r.m.dec:1;
+  return ((r.m.signed&&r.val>0)?'+':'')+r.val.toFixed(d).replace('.',',')+(r.m.u?' '+r.m.u:''); }
+
+// Difficulté cranio-faciale (Merrifield) : écart hors intervalle × coefficient
+const DIFF = [
+  {id:'FMA', label:'FMA', lo:22, hi:28, coef:5, unitTxt:'°'},
+  {id:'HFP_HFAI', label:'HFP / HFAI', lo:0.65, hi:0.75, coef:300, unitTxt:'', coefTxt:'3 par 0,01'},
+  {id:'OccFr', label:'Occ / Francfort', lo:8, hi:12, coef:3, unitTxt:'°'},
+  {id:'ANB', label:'ANB', lo:1, hi:5, coef:15, unitTxt:'°'},
+  {id:'SNB', label:'SNB', lo:78, hi:82, coef:5, unitTxt:'°'},
+  {id:'Z', label:'Angle Z', lo:70, hi:80, coef:2, unitTxt:'°'},
+];
+function difficulty(){
+  let total=0, complete=true; const rows=DIFF.map(d=>{
+    const r=evalM(d.id); if(r.val===null){ complete=false; return {...d,val:null}; }
+    const ecart = r.val<d.lo ? d.lo-r.val : r.val>d.hi ? r.val-d.hi : 0;
+    const score = ecart*d.coef; total+=score; return {...d,val:r.val,ecart,score};
+  });
+  return {rows,total,complete};
+}
+function prognosisFMA(f){
+  if(f<11) return 'Pronostic réservé';
+  if(f<23) return 'Pronostic très favorable';
+  if(f<30) return 'Pronostic favorable';
+  if(f<=35) return 'Pronostic défavorable';
+  return 'Pronostic défavorable, indication chirurgicale';
+}
+function incisorGoal(fma, impa){
+  if(fma<22) return {txt:'FMA < 22° : objectif IMPA ≤ 92°', target:92, ok: impa<=92};
+  const fmia = fma<=28 ? 68 : 65;
+  const target = 180-fma-fmia;
+  return {txt:`FMA ${fma<=28?'entre 22 et 28°':'> 28°'} : objectif FMIA = ${fmia}°, soit IMPA = ${fmtN(target)}°`, target, ok: impa<=target};
+}
+// Indice VERT de Ricketts : moyenne des écarts réduits de 5 facteurs
+const VERT_F = [['AxeF',1],['ProfF',1],['PlanM',-1],['HFI',-1],['ArcM',1]];
+function vert(){
+  let s=0; for(const [id,sg] of VERT_F){ const r=evalM(id); if(r.val===null) return null; s+=sg*(r.val-r.n.mean)/r.n.sd; }
+  const v=s/VERT_F.length;
+  const t = v<=-1.5?'Dolichofacial sévère': v<=-0.5?'Dolichofacial': v<0.5?'Mésofacial': v<1.5?'Brachyfacial':'Brachyfacial sévère';
+  return {v,t};
+}
+
+/* ---------- Dessin ---------- */
+const WHITE='rgba(255,255,255,.95)', WHITE2='rgba(255,255,255,.8)';
+// Dessine les constructions sur un contexte cx, avec la transformation T (image -> cible) et une épaisseur k
+function drawScene(cx,T,k){
+  const seg=(a,b,o={})=>{ if(!a||!b) return;
+    let p1=a,p2=b;
+    if(o.ext){ const d=V(a,b), len=norm(d); if(len<1e-6) return; const u={x:d.x/len,y:d.y/len};
+      p1=add(a,u,-len*o.ext); p2=add(b,u,len*o.ext); }
+    const s1=T(p1), s2=T(p2);
+    cx.strokeStyle=o.col||WHITE; cx.lineWidth=(o.w||1.1)*k; cx.setLineDash(o.dash?o.dash.map(x=>x*k):[]);
+    cx.beginPath(); cx.moveTo(s1.x,s1.y); cx.lineTo(s2.x,s2.y); cx.stroke(); cx.setLineDash([]); };
+  const proj=(p,a,b)=>{ if(!p||!a||!b) return; const f=projectOnLine(p,a,b); seg(p,f,{dash:[4,3],w:1,col:WHITE2}); dotAt(f,2); };
+  const dotAt=(p,r)=>{ const s=T(p); cx.fillStyle=WHITE; cx.beginPath(); cx.arc(s.x,s.y,r*k,0,7); cx.fill(); };
+  const cpt=(code)=>{ const p=P(code); if(!p) return; const s=T(p); cx.fillStyle='#fff'; cx.strokeStyle='#12161c'; cx.lineWidth=1.2*k;
+    cx.fillRect(s.x-3*k,s.y-3*k,6*k,6*k); cx.strokeRect(s.x-3*k,s.y-3*k,6*k,6*k); tag(cx,s.x+7*k,s.y-7*k,code,'#fff',k); };
+  const p=c=>P(c);
+  const T_=usesAn('T'), S_=usesAn('S'), R_=usesAn('R');
+
+  if(T_||S_){ seg(p('S'),p('Na'),{ext:0.25}); seg(p('Na'),p('A'),{ext:0.15}); seg(p('Na'),p('B'),{ext:0.1});
+    seg(p('OccP'),p('OccA'),{ext:0.6,dash:[8,5],w:2.6}); seg(p('U1i'),p('U1a'),{ext:0.3,w:2.6}); seg(p('L1i'),p('L1a'),{ext:0.3,w:2.6}); }
+  if(T_||R_){ seg(p('Po'),p('Or'),{ext:0.35}); seg(p('GoI'),p('Me'),{ext:0.35,w:2.6}); }
+  if(T_){
+    seg(p('ENA'),p('ENP'),{ext:0.2});
+    proj(p('Me'),p('ENA'),p('ENP'));
+    if(has('Ar','Br','GoI','Me')){ const f=hfpFoot(); if(f){ seg(p('Ar'),f,{w:1}); dotAt(f,2); } } seg(p('Na'),p('Me'),{w:1,dash:[3,4]});
+    proj(p('A'),p('OccP'),p('OccA')); proj(p('B'),p('OccP'),p('OccA')); cpt('Ao'); cpt('Bo');
+    if(has('PogM','Ls','Li','Po','Or')){ const z=zAngle(); seg(p('PogM'),p(z.lip),{ext:0.6}); }
+  }
+  if(S_){
+    seg(p('Na'),p('D'),{w:1}); seg(p('Go'),p('Gn'),{ext:0.15,w:2.6});
+    proj(p('U1c'),p('Na'),p('A')); proj(p('L1c'),p('Na'),p('B')); proj(p('Pog'),p('Na'),p('B'));
+    proj(p('Ar'),p('S'),p('Na')); proj(p('Pog'),p('S'),p('Na')); cpt('E'); cpt('L');
+    seg(p('Cm'),p('PogM'),{ext:0.4}); proj(p('Ls'),p('Cm'),p('PogM')); proj(p('Li'),p('Cm'),p('PogM'));
+  }
+  if(R_){
+    const P_=state.points;
+    seg(p('Ba'),p('Na'),{ext:0.1});
+    if(P_.Pt&&P_.Po&&P_.Or){ const u=unit(V(P_.Po,P_.Or)), v={x:-u.y,y:u.x}; const L=distPts(P_.Po,P_.Or);
+      seg(add(P_.Pt,v,-L*0.6),add(P_.Pt,v,L*1.2)); }
+    seg(p('Pt'),p('Gn'),{ext:0.1}); seg(p('Na'),p('Pog'),{ext:0.1}); seg(p('A'),p('Pog'),{ext:0.2,w:1.8});
+    if(P_.Po&&P_.Or){ const u=unit(V(P_.Po,P_.Or)), v={x:-u.y,y:u.x}, L=distPts(P_.Po,P_.Or)*0.35;
+      if(P_.R1 && (state.placeTarget==='R2'||!P_.R2)) seg(add(P_.R1,u,-L),add(P_.R1,u,L*0.3),{dash:[3,4],col:'rgba(255,255,255,.6)'});
+      if(P_.R3 && (state.placeTarget==='R4'||!P_.R4)) seg(add(P_.R3,v,-L*0.2),add(P_.R3,v,L),{dash:[3,4],col:'rgba(255,255,255,.6)'}); }
+    if(P_.R1&&P_.R2&&P_.R3&&P_.R4&&P_.Po&&P_.Or){
+      const u=unit(V(P_.Po,P_.Or)), v={x:-u.y,y:u.x};
+      const cu=[dot(V(P_.Po,P_.R1),u),dot(V(P_.Po,P_.R2),u)], cv=[dot(V(P_.Po,P_.R3),v),dot(V(P_.Po,P_.R4),v)];
+      const c=(a,b)=>add(add(P_.Po,u,a),v,b);
+      const q=[c(cu[0],cv[0]),c(cu[1],cv[0]),c(cu[1],cv[1]),c(cu[0],cv[1])];
+      for(let i=0;i<4;i++) seg(q[i],q[(i+1)%4],{w:1,dash:[5,4]});
+      seg(c(cu[0],cv[0]),c(cu[1],cv[1]),{w:1,col:'rgba(255,255,255,.5)'}); seg(c(cu[1],cv[0]),c(cu[0],cv[1]),{w:1,col:'rgba(255,255,255,.5)'});
+      cpt('Xi'); seg(p('Xi'),p('Pm')); seg(p('Xi'),p('ENA')); seg(p('Dc'),p('Xi'));
+    }
+    seg(p('L1i'),p('L1a'),{ext:0.3,w:2.6}); seg(p('L1i'),p('Co'),{w:1,dash:[6,4]});
+    if(P_.U6d&&P_.Pt&&P_.Po&&P_.Or){ const f=projectOnLine(P_.U6d,P_.Pt,add(P_.Pt,{x:-(P_.Or.y-P_.Po.y),y:P_.Or.x-P_.Po.x},1)); seg(P_.U6d,f,{dash:[4,3],w:1,col:WHITE2}); }
+    seg(p('Prn'),p('PogM'),{ext:0.3}); proj(p('Ls'),p('Prn'),p('PogM')); proj(p('Li'),p('Prn'),p('PogM'));
+  }
+}
+function tag(cx,x,y,txt,color,k){
+  k=k||1; cx.font=`600 ${12*k}px `+getComputedStyle(document.body).fontFamily;
+  const w=cx.measureText(txt).width; cx.fillStyle='rgba(10,13,18,.72)';
+  cx.fillRect(x-3*k,y-12*k,w+6*k,16*k); cx.fillStyle=color||'#fff'; cx.fillText(txt,x,y);
+}
+function draw(){
+  const r=wrap.getBoundingClientRect();
+  ctx.clearRect(0,0,r.width,r.height);
+  if(!state.img) return;
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(state.img, state.view.x, state.view.y, state.img.width*state.view.scale, state.img.height*state.view.scale);
+  drawScene(ctx, imgToScreen, 1);
+  if(state.scale.p1&&state.scale.p2){
+    const a=imgToScreen(state.scale.p1), b=imgToScreen(state.scale.p2);
+    ctx.strokeStyle='#8b5cf6'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);
+    [a,b].forEach(pt=>{ctx.fillStyle='#8b5cf6';ctx.beginPath();ctx.arc(pt.x,pt.y,4,0,7);ctx.fill();});
+    if(state.scale.mm) tag(ctx,(a.x+b.x)/2,(a.y+b.y)/2-10,state.scale.mm+' mm','#c4b5fd');
+  }
+  state.scaleClicks.forEach(p=>{const s=imgToScreen(p);ctx.fillStyle='#8b5cf6';ctx.beginPath();ctx.arc(s.x,s.y,5,0,7);ctx.fill();});
+  for(const code in state.points){
+    const s=imgToScreen(state.points[code]); const active=state.placeTarget===code, hover=state.hoverPt===code, col=PT_COLOR(code);
+    ctx.beginPath();ctx.arc(s.x,s.y,hover?5:3.8,0,7); ctx.fillStyle=col;
+    ctx.strokeStyle=active?'#fff':'#12161c'; ctx.lineWidth=active?1.8:1.2; ctx.fill();ctx.stroke();
+    tag(ctx,s.x+7,s.y-7,PT_LABEL(code),col);
+  }
+  drawLoupe();
+}
+function drawLoupe(){
+  if(!state.useLoupe || !state.img || !state.cursor) return;
+  if(state.panning || state.spaceDown) return;
+  if(!(state.placeTarget || state.dragPt || state.mode==='scale')) return;
+  const r=wrap.getBoundingClientRect(), R=state.loupeR, mag=state.loupeMag, cur=state.cursor, ip=screenToImg(cur);
+  let lx=cur.x-R-24, ly=cur.y-R-24;
+  if(lx-R<6) lx=cur.x+R+24; if(ly-R<6) ly=cur.y+R+24;
+  lx=Math.max(R+6,Math.min(r.width-R-6,lx)); ly=Math.max(R+6,Math.min(r.height-R-6,ly));
+  ctx.save(); ctx.beginPath(); ctx.arc(lx,ly,R,0,7); ctx.closePath(); ctx.fillStyle='#0b0f14'; ctx.fill(); ctx.clip();
+  const s=state.view.scale*mag;
+  ctx.drawImage(state.img, lx-ip.x*s, ly-ip.y*s, state.img.width*s, state.img.height*s);
+  drawScene(ctx, p=>({x:lx+(p.x-ip.x)*s, y:ly+(p.y-ip.y)*s}), 1);
+  for(const code in state.points){ const p=state.points[code]; const x=lx+(p.x-ip.x)*s, y=ly+(p.y-ip.y)*s;
+    if(Math.hypot(x-lx,y-ly)>R+10) continue;
+    ctx.beginPath(); ctx.arc(x,y,3.8,0,7); ctx.fillStyle=PT_COLOR(code); ctx.strokeStyle='#12161c'; ctx.lineWidth=1.5; ctx.fill(); ctx.stroke(); }
+  ctx.restore();
+  ctx.save(); ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=1; ctx.beginPath();
+  ctx.moveTo(lx-14,ly); ctx.lineTo(lx-4,ly); ctx.moveTo(lx+4,ly); ctx.lineTo(lx+14,ly);
+  ctx.moveTo(lx,ly-14); ctx.lineTo(lx,ly-4); ctx.moveTo(lx,ly+4); ctx.lineTo(lx,ly+14); ctx.stroke();
+  ctx.beginPath(); ctx.arc(lx,ly,R,0,7); ctx.strokeStyle='#2dd4bf'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+}
+
+/* ---------- Liste des points ---------- */
+const tabPoints=document.getElementById('tab-points');
+function renderPoints(){
+  if(!state.analyses.length){
+    tabPoints.innerHTML='<p class="empty-note">Choisir d\'abord une analyse à l\'étape 2.</p>'; return;
+  }
+  const act=activeLandmarks();
+  let html='';
+  for(const g of GROUP_ORDER){
+    const items=act.filter(l=>l.grp===g); if(!items.length) continue;
+    html+=`<div class="lm-group"><h4>${g}</h4>`;
+    for(const l of items){
+      const placed=!!state.points[l.code], active=state.placeTarget===l.code;
+      const used=[...l.an].filter(a=>usesAn(a)).map(a=>AN_NAME[a]).join(', ');
+      html+=`<div class="lm ${placed?'placed':''} ${active?'active':''}" data-code="${l.code}">
+        <div class="chip">${placed?'✓':''}</div>
+        <div class="meta"><div class="code">${PT_LABEL(l.code)} <span style="color:var(--ink-faint);font-weight:400;font-size:11px">${l.name}</span></div>
+        <div class="desc" title="${l.desc}">${l.desc}</div></div>
+        <div class="status">${state.analyses.length>1?used:''}</div></div>`;
+    }
+    if(g==='Ramus (construction de Xi)' && usesAn('R')){
+      html+=`<div class="lm computed"><div class="chip">Xi</div><div class="meta"><div class="code">Xi <span style="color:var(--ink-faint);font-weight:400;font-size:11px">construit</span></div>
+        <div class="desc">Centre du rectangle tracé sur R1 à R4, parallèle à Francfort et à PtV</div></div><div class="status">${P('Xi')?'calculé':''}</div></div>`;
+    }
+    html+='</div>';
+  }
+  const n=act.filter(l=>state.points[l.code]).length;
+  html=`<p class="mini" style="margin-top:0">${n} / ${act.length} points placés. Cliquer sur un point de la liste pour le placer.
+    Sur le cliché, glisser un point pour l'ajuster. Après avoir modifié un point, recliquer sur le point suivant de la liste.</p>`+html;
+  tabPoints.innerHTML=html;
+  tabPoints.querySelectorAll('.lm[data-code]').forEach(el=>{ el.onclick=()=>startPlacing(el.dataset.code); });
+}
+
+/* ---------- Placement ---------- */
+function snap(code,p){
+  // Dc se place sur la ligne Ba-Na
+  const q=state.points;
+  if(code==='Dc' && q.Ba && q.Na) return projectOnLine(p,q.Ba,q.Na);
+  // R2 en regard de R1 sur une parallèle à Francfort, R4 sous R3 sur une parallèle à PtV
+  if(q.Po && q.Or){ const u=unit(V(q.Po,q.Or)), v={x:-u.y,y:u.x};
+    if(code==='R2' && q.R1) return projectOnLine(p,q.R1,add(q.R1,u,1));
+    if(code==='R4' && q.R3) return projectOnLine(p,q.R3,add(q.R3,v,1)); }
+  return p;
+}
+function startPlacing(code){
+  if(!state.img){toast('Ouvrir d\'abord une image.');return;}
+  state.mode='place'; state.placeTarget=code; state.scaleClicks=[];
+  const lm=LANDMARKS.find(l=>l.code===code);
+  let extra = code==='Dc' && !(state.points.Ba&&state.points.Na) ? ' <span style="color:var(--accent-warm)">Placer d\'abord Ba et Na.</span>' : '';
+  showBanner(`Placer <b>${PT_LABEL(code)}</b>, ${lm.name}. <span style="color:var(--ink-dim)">${lm.desc}</span>${extra}`);
+  renderPoints(); draw(); switchTab('points');
+}
+function advancePlacement(){
+  const nxt=activeLandmarks().find(l=>!state.points[l.code]);
+  if(nxt){ startPlacing(nxt.code); }
+  else { state.mode='idle'; state.placeTarget=null; hideBanner(); toast('Tous les points sont placés.'); switchTab('results'); }
+  renderPoints(); computeAndRender();
+}
+
+/* ---------- Interaction ---------- */
+function hitTest(pos){ for(const code in state.points){ const s=imgToScreen(state.points[code]); if(Math.hypot(s.x-pos.x,s.y-pos.y)<9) return code; } return null; }
+stage.addEventListener('mousedown', e=>{
+  if(!state.img) return;
+  const pos=evtPos(e);
+  if(state.spaceDown||e.button===1){ state.panning=true; state.panStart=pos; state.viewStart={...state.view}; return; }
+  const hit=hitTest(pos);
+  if(hit && state.mode!=='scale'){ state.dragPt=hit; state.placeTarget=hit; renderPoints(); return; }
+  const ip=screenToImg(pos);
+  if(state.mode==='scale'){
+    state.scaleClicks.push(ip);
+    if(state.scaleClicks.length===2){
+      state.scale.p1=state.scaleClicks[0]; state.scale.p2=state.scaleClicks[1];
+      state.scaleClicks=[]; state.mode='idle'; hideBanner(); updateScaleReadout(); switchTab('scale');
+      toast('Segment tracé. Saisir la distance réelle puis « Appliquer ».');
+    } else showBanner('Échelle : placer la <b>2ᵉ extrémité</b> du segment de référence.');
+    draw(); return;
+  }
+  if(state.mode==='place' && state.placeTarget){
+    state.points[state.placeTarget]=snap(state.placeTarget,ip); draw(); advancePlacement();
+  }
+});
+stage.addEventListener('mousemove', e=>{
+  const pos=evtPos(e); state.cursor=pos;
+  if(state.panning){ state.view.x=state.viewStart.x+(pos.x-state.panStart.x); state.view.y=state.viewStart.y+(pos.y-state.panStart.y); draw(); return; }
+  if(state.dragPt){ state.points[state.dragPt]=snap(state.dragPt,screenToImg(pos)); draw(); computeAndRender(); return; }
+  const hit=hitTest(pos);
+  if(hit!==state.hoverPt){ state.hoverPt=hit; stage.style.cursor=hit?'pointer':(state.mode==='idle'?'default':'crosshair'); }
+  draw();
+});
+stage.addEventListener('mouseleave', ()=>{ state.cursor=null; draw(); });
+window.addEventListener('mouseup', ()=>{ if(state.dragPt){ state.dragPt=null; renderPoints(); } state.panning=false; });
+stage.addEventListener('wheel', e=>{
+  if(!state.img) return; e.preventDefault();
+  const pos=evtPos(e), before=screenToImg(pos), f=e.deltaY<0?1.12:1/1.12;
+  state.view.scale=Math.max(0.05,Math.min(40,state.view.scale*f));
+  const after=screenToImg(pos); state.view.x+=(after.x-before.x)*state.view.scale; state.view.y+=(after.y-before.y)*state.view.scale; draw();
+},{passive:false});
+const btnLoupe=document.getElementById('btnLoupe'); btnLoupe.classList.add('on');
+btnLoupe.onclick=()=>{ state.useLoupe=!state.useLoupe; btnLoupe.classList.toggle('on',state.useLoupe); draw(); };
+window.addEventListener('keydown',e=>{ if(e.code==='Space'&&e.target.tagName!=='INPUT'){state.spaceDown=true; stage.style.cursor='grab';}});
+window.addEventListener('keyup',  e=>{ if(e.code==='Space'){state.spaceDown=false; stage.style.cursor='crosshair';}});
+
+/* ---------- Échelle ---------- */
+function startScale(){
+  if(!state.img){toast('Ouvrir d\'abord une image.');return;}
+  state.mode='scale'; state.scaleClicks=[]; state.placeTarget=null;
+  showBanner('Échelle : placer la <b>1ʳᵉ extrémité</b> du segment de référence (longueur connue).');
+}
+function updateScaleReadout(){
+  const el=id=>document.getElementById(id);
+  if(state.scale.p1&&state.scale.p2){
+    el('scalePx').textContent=distPts(state.scale.p1,state.scale.p2).toFixed(1)+' px';
+    if(state.scale.factor) el('scaleFactor').textContent=state.scale.factor.toFixed(4)+' mm/px';
+  }
+  updateSteps();
+}
+function applyScale(){
+  const v=parseFloat(document.getElementById('scaleMm').value);
+  if(!state.scale.p1||!state.scale.p2){toast('Tracer d\'abord le segment.');return;}
+  if(!v||v<=0){toast('Saisir une distance en mm valide.');return;}
+  state.scale.mm=v; state.scale.factor=v/distPts(state.scale.p1,state.scale.p2);
+  updateScaleReadout(); draw(); computeAndRender();
+  toast('Échelle appliquée. Étape suivante : choix de l\'analyse.'); switchTab('analysis');
+}
+
+/* ---------- Analyses ---------- */
+document.querySelectorAll('.an-card input').forEach(inp=>{
+  inp.onchange=()=>{
+    state.analyses=[...document.querySelectorAll('.an-card input')].filter(i=>i.checked).map(i=>i.value);
+    document.querySelectorAll('.an-card').forEach(c=>c.classList.toggle('on',c.querySelector('input').checked));
+    document.getElementById('ageRow').style.display=usesAn('R')?'flex':'none';
+    document.getElementById('ageNote').style.display=usesAn('R')?'block':'none';
+    document.getElementById('btnStart').disabled=!state.analyses.length;
+    renderPoints(); computeAndRender(); draw(); updateSteps();
+  };
+});
+document.getElementById('btnStart').onclick=()=>{
+  if(!state.img){toast('Ouvrir d\'abord une image.');return;}
+  const nxt=activeLandmarks().find(l=>!state.points[l.code]);
+  if(nxt) startPlacing(nxt.code); else switchTab('results');
+};
+document.getElementById('age').oninput=e=>{ const v=parseFloat(e.target.value); state.age=(v>0)?v:null; computeAndRender(); };
+document.getElementById('ageRow').style.display='none'; document.getElementById('ageNote').style.display='none';
+
+/* ---------- Résultats ---------- */
+const resultsHost=document.getElementById('resultsHost');
+function rowHTML(r){
+  let v;
+  if(r.needsScale) v='<span class="val na">échelle requise</span>';
+  else if(r.val===null) v=`<span class="val na"><small style="font-weight:400">${(r.missing||[]).map(PT_LABEL).join(', ')}</small></span>`;
+  else v=`<span class="val">${fmtV(r)}</span>`;
+  const nt=r.n&&r.n.txt?r.n.txt:'';
+  return `<tr><td class="measure">${r.m.label}${r.m.sub?`<small>${r.m.sub}</small>`:''}</td>
+    <td class="norm">${nt}</td><td style="text-align:right">${v}</td><td class="interp ${r.cls||''}">${r.interp||''}</td></tr>`;
+}
+function computeAndRender(){
+  if(!state.analyses.length){ resultsHost.innerHTML='<p class="empty-note">Choisir une analyse à l\'étape 2.</p>'; return; }
+  let html='';
+  for(const a of ['T','S','R']){
+    if(!usesAn(a)) continue;
+    const A=ANALYSES[a];
+    html+=`<div class="res-h">${A.title}${a==='R'?` <span style="font-weight:400;font-size:12px;color:var(--ink-faint)">normes à ${fmtN(ageY())} ans</span>`:''}</div>
+      <table class="results"><thead><tr><th>Mesure</th><th style="text-align:right">Norme</th><th style="text-align:right">Patient</th><th>Interprétation</th></tr></thead><tbody>`;
+    for(const [sec,ids] of A.sections){
+      html+=`<tr class="sec"><td colspan="4">${sec}</td></tr>`;
+      ids.forEach(id=>{ html+=rowHTML(evalM(id)); });
+    }
+    html+='</tbody></table>';
+    if(a==='T') html+=tweedExtras();
+    if(a==='R'){ const vt=vert();
+      html+=`<div class="boxnote"><b>Indice VERT</b> (axe facial, profondeur faciale, plan mandibulaire, hauteur faciale inférieure, arc mandibulaire) :
+        ${vt?`<b>${(vt.v>0?'+':'')+vt.v.toFixed(2).replace('.',',')}</b>, ${vt.t}`:'en attente des points'}</div>`; }
+  }
+  resultsHost.innerHTML=html;
+}
+function tweedExtras(){
+  const d=difficulty();
+  let h=`<div class="res-h" style="font-size:13.5px">Difficulté cranio-faciale</div>
+   <table class="results"><thead><tr><th>Mesure</th><th style="text-align:right">Norme</th><th style="text-align:right">Patient</th><th style="text-align:right">Écart</th><th style="text-align:right">Coef.</th><th style="text-align:right">Difficulté</th></tr></thead><tbody>`;
+  d.rows.forEach(r=>{
+    const dec=r.id==='HFP_HFAI'?2:1;
+    const nrm=r.id==='HFP_HFAI'?'0,65 à 0,75':`${r.lo} à ${r.hi}${r.unitTxt}`;
+    h+=`<tr><td class="measure">${r.label}</td><td class="norm">${nrm}</td>
+      <td class="val">${r.val===null?'':r.val.toFixed(dec).replace('.',',')}</td>
+      <td class="val">${r.val===null?'':r.ecart.toFixed(dec).replace('.',',')}</td>
+      <td class="norm">${r.coefTxt||r.coef}</td>
+      <td class="val">${r.val===null?'':r.score.toFixed(1).replace('.',',')}</td></tr>`;
+  });
+  h+=`<tr class="sec"><td colspan="5">Total difficulté cranio-faciale</td><td class="val" style="color:var(--ink)">${d.complete?d.total.toFixed(1).replace('.',','):''}</td></tr></tbody></table>`;
+  return h;
+}
+
+/* ---------- Étapes ---------- */
+function switchTab(name){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  ['scale','analysis','points','results'].forEach(t=>{ document.getElementById('tab-'+t).style.display=(t===name)?'block':'none'; });
+}
+function updateSteps(){
+  const done={scale:!!state.scale.factor, analysis:state.analyses.length>0,
+    points:state.analyses.length>0 && activeLandmarks().every(l=>state.points[l.code])};
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('done',!!done[b.dataset.tab]));
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+
+/* ---------- Bannière / toast ---------- */
+const banner=document.getElementById('banner'), bannerText=document.getElementById('bannerText');
+function showBanner(h){ bannerText.innerHTML=h; banner.style.display='flex'; }
+function hideBanner(){ banner.style.display='none'; }
+let toastT;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
+
+/* ---------- Image ---------- */
+const fileInput=document.getElementById('file');
+document.getElementById('btnLoad').onclick=()=>fileInput.click();
+fileInput.onchange=e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); };
+function loadFile(file){
+  const img=new Image();
+  img.onload=()=>{ state.img=img; state.imgName=file.name.replace(/\.[^.]+$/,'');
+    document.getElementById('dropHint').style.display='none'; document.getElementById('zoombar').style.display='flex';
+    fitView(); switchTab('scale'); toast('Image chargée. Étape 1 : mise à l\'échelle.'); };
+  img.src=URL.createObjectURL(file);
+}
+['dragover','drop'].forEach(ev=>wrap.addEventListener(ev,e=>e.preventDefault()));
+wrap.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) loadFile(f); });
+
+document.getElementById('btnScale').onclick=startScale;
+document.getElementById('applyScale').onclick=applyScale;
+document.getElementById('btnReset').onclick=()=>{
+  if(!confirm('Réinitialiser tous les points et l\'échelle ?')) return;
+  state.points={}; state.scale={p1:null,p2:null,mm:null,factor:null}; state.scaleClicks=[];
+  state.mode='idle'; state.placeTarget=null; hideBanner();
+  document.getElementById('scaleMm').value=''; document.getElementById('scalePx').textContent='non tracé'; document.getElementById('scaleFactor').textContent='non définie';
+  renderPoints(); computeAndRender(); draw(); updateSteps();
+};
+function zoomBy(f){ const r=wrap.getBoundingClientRect(); const c={x:r.width/2,y:r.height/2};
+  const before=screenToImg(c); state.view.scale=Math.max(0.05,Math.min(40,state.view.scale*f));
+  const after=screenToImg(c); state.view.x+=(after.x-before.x)*state.view.scale; state.view.y+=(after.y-before.y)*state.view.scale; draw(); }
+document.getElementById('zIn').onclick=()=>zoomBy(1.2);
+document.getElementById('zOut').onclick=()=>zoomBy(1/1.2);
+document.getElementById('zFit').onclick=fitView;
+
+/* ---------- Export ---------- */
+function exportRows(){
+  const out=[];
+  for(const a of ['T','S','R']){ if(!usesAn(a)) continue;
+    for(const [sec,ids] of ANALYSES[a].sections) for(const id of ids){ const r=evalM(id);
+      out.push([AN_NAME[a], sec, r.m.label+(r.m.sub?' ('+r.m.sub+')':''), r.n&&r.n.txt?r.n.txt:'', r.needsScale?'échelle requise':fmtV(r), r.interp||'']); }
+    if(a==='T'){ const d=difficulty(); if(d.complete) out.push(['Tweed','Difficulté','Difficulté cranio-faciale','','',d.total.toFixed(1).replace('.',',')]); }
+    if(a==='R'){ const vt=vert(); if(vt) out.push(['Ricketts','Typologie','Indice VERT','',vt.v.toFixed(2).replace('.',','),vt.t]); }
+  }
+  return out;
+}
+document.getElementById('btnExportCsv').onclick=()=>{
+  const rows=exportRows(); if(!rows.length){toast('Choisir une analyse.');return;}
+  const csv='Analyse;Section;Mesure;Norme;Patient;Interprétation\n'+rows.map(r=>r.map(c=>`"${c}"`).join(';')).join('\n');
+  download((state.imgName||'cephalo')+'_analyse.csv','text/csv;charset=utf-8','﻿'+csv); toast('CSV exporté.');
+};
+document.getElementById('btnCopy').onclick=async ()=>{
+  const txt=['Analyse\tSection\tMesure\tNorme\tPatient\tInterprétation',...exportRows().map(r=>r.join('\t'))].join('\n');
+  try{ await navigator.clipboard.writeText(txt); toast('Tableau copié dans le presse-papiers.'); } catch(_){ toast('Copie impossible (permissions navigateur).'); }
+};
+function renderAnnotated(){
+  if(!state.img) return null;
+  const c=document.createElement('canvas'); c.width=state.img.width; c.height=state.img.height;
+  const x=c.getContext('2d'); x.drawImage(state.img,0,0);
+  const k=Math.max(1,state.img.width/900);
+  drawScene(x, p=>p, k);
+  for(const code in state.points){ const p=state.points[code];
+    x.fillStyle=PT_COLOR(code); x.beginPath(); x.arc(p.x,p.y,3*k,0,7); x.fill(); tag(x,p.x+7*k,p.y-5*k,PT_LABEL(code),PT_COLOR(code),k); }
+  return c;
+}
+document.getElementById('btnExportPng').onclick=()=>{
+  const c=renderAnnotated(); if(!c){toast('Aucune image.');return;}
+  c.toBlob(b=>{download((state.imgName||'cephalo')+'_annote.png','image/png',null,b); toast('Image annotée exportée.');});
+};
+function download(name,mime,text,blob){
+  const a=document.getElementById('dl'); const b=blob||new Blob([text],{type:mime});
+  a.href=URL.createObjectURL(b); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+
+
+
+/* ---------- Init ---------- */
+renderPoints(); computeAndRender(); resizeCanvas(); updateSteps();
+</script>
+
+<style>
+.ml-link{font-size:10px;color:rgba(120,130,145,.55);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;margin-left:8px;align-self:center;white-space:nowrap;font-weight:400}
+.ml-link:hover{color:rgba(120,130,145,.95)}
+#mlPop{position:fixed;inset:0;z-index:300;background:rgba(15,25,35,.55);display:none;align-items:center;justify-content:center;padding:20px}
+#mlPop .ml-card{background:#fff;color:#1a2536;border-radius:12px;max-width:560px;padding:22px 26px;box-shadow:0 18px 50px rgba(0,0,0,.35);font-family:-apple-system,Helvetica,sans-serif;font-size:13px;line-height:1.65}
+#mlPop h4{margin:0 0 10px;font-size:14px}
+#mlPop a{color:#3E7CB1}
+#mlPop .ml-close{margin-top:14px;background:#223140;color:#fff;border:none;border-radius:7px;padding:7px 16px;font-size:12.5px;font-weight:600;cursor:pointer}
+@media print{.ml-link,#mlPop{display:none!important}}
+</style>
+<div id="mlPop" onclick="if(event.target===this)this.style.display='none'">
+  <div class="ml-card">
+    <h4>Mentions légales — Analyse céphalométrique (Tweed, Steiner &amp; Ricketts)</h4>
+    © 2026 Dr Anaïs Cavaré — développée avec l'assistance de Claude Fable 5 (Anthropic).<br>
+    Application diffusée sous licence <b>Creative Commons BY-NC-SA 4.0</b> : usage libre et gratuit.
+    Mention de l'auteur requise. Utilisation commerciale interdite. Toute version modifiée doit être
+    diffusée sous la même licence.<br>
+    Texte légal complet : <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr" target="_blank" rel="noopener">creativecommons.org/licenses/by-nc-sa/4.0</a><br>
+    <span style="color:#5a6e82">Outil d'aide au diagnostic. Il ne se substitue pas au jugement clinique du praticien.</span><br>
+    <button class="ml-close" onclick="document.getElementById('mlPop').style.display='none'">Fermer</button>
+  </div>
+</div>
+</body>
+</html>
